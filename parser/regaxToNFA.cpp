@@ -16,6 +16,7 @@ std::queue<std::string> re2post(const std::string &re) {
     std::stack<State> parenStack;
     int alt = 0;
     int atom = 0;
+    char prev = 0;
 
     for (char c: re) {
         switch (c) {
@@ -27,6 +28,7 @@ std::queue<std::string> re2post(const std::string &re) {
                 parenStack.push({alt, atom});
                 alt = 0;
                 atom = 0;
+                prev = '(';
                 break;
 
             case '|':
@@ -37,25 +39,41 @@ std::queue<std::string> re2post(const std::string &re) {
                     result.push("conc");
                 }
                 ++alt;
+                prev = '|';
                 break;
 
             case ')':
-                if (parenStack.empty() || atom == 0) {
-                    throw std::invalid_argument("Invalid regex: mismatched parentheses.");
-                }
-                while (--atom > 0) {
-                    result.emplace("conc");
-                }
-                for (; alt > 0; --alt) {
-                    result.emplace("|");
-                }
+                if (prev == '(')
                 {
                     State top = parenStack.top();
                     parenStack.pop();
                     alt = top.alt;
                     atom = top.atom;
+                    result.emplace("\u03B5");
+                    ++atom;
+                    break;
                 }
-                ++atom;
+                else
+                {
+                    if (parenStack.empty() || atom == 0) {
+                        throw std::invalid_argument("Invalid regex: mismatched parentheses2.");
+                    }
+                    while (--atom > 0) {
+                        result.emplace("conc");
+                    }
+                    for (; alt > 0; --alt) {
+                        result.emplace("|");
+                    }
+                    {
+                        State top = parenStack.top();
+                        parenStack.pop();
+                        alt = top.alt;
+                        atom = top.atom;
+                    }
+                    ++atom;
+                }
+
+                prev = ')';
                 break;
 
             case '*':
@@ -65,6 +83,7 @@ std::queue<std::string> re2post(const std::string &re) {
                     throw std::invalid_argument("Invalid regex: operator '" + std::string(1, c) + "' without operand.");
                 }
                 result.emplace(1, c);
+                prev = c;
                 break;
 
             default:
@@ -74,12 +93,13 @@ std::queue<std::string> re2post(const std::string &re) {
                 }
                 result.emplace(1, c);
                 ++atom;
+                prev = c;
                 break;
         }
     }
 
     if (!parenStack.empty()) {
-        throw std::invalid_argument("Invalid regex: mismatched parentheses.");
+        throw std::invalid_argument("Invalid regex: mismatched parentheses1.");
     }
 
     while (--atom > 0) {
