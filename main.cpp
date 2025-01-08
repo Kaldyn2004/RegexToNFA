@@ -3,16 +3,9 @@
 #include <string>
 #include <vector>
 #include <queue>
-#include <unordered_map>
-#include <unordered_set>
-#include <stack>
 #include "./parser/regaxToNFA.cpp"
-
-#include <iostream>
-#include <vector>
 #include <map>
 #include <algorithm>
-#include <string>
 #include <set>
 
 enum {
@@ -21,15 +14,14 @@ enum {
 };
 
 struct State {
-    int c;                     // Символ или тип состояния
-    State *out = nullptr;      // Первый выход
-    State *out1 = nullptr;     // Второй выход (используется для Split)
+    int c;
+    State *out = nullptr;
+    State *out1 = nullptr;
 };
 
 State matchstate = {Match};
 int stateIdCounter = 0;
 
-// Функция для генерации уникальных имен состояний
 std::string generateStateId() {
     return "q" + std::to_string(stateIdCounter++);
 }
@@ -50,7 +42,7 @@ std::vector<State **> list1(State **outp) {
 }
 
 void patch(std::vector<State **> &l, State *s) {
-    for (auto outp : l) {
+    for (auto outp: l) {
         *outp = s;
     }
 }
@@ -71,32 +63,38 @@ State *post2nfa(std::queue<std::string> &postfix) {
         postfix.pop();
 
         if (token == "conc") {
-            Frag e2 = stack.back(); stack.pop_back();
-            Frag e1 = stack.back(); stack.pop_back();
+            Frag e2 = stack.back();
+            stack.pop_back();
+            Frag e1 = stack.back();
+            stack.pop_back();
             patch(e1.out, e2.start);
             stack.emplace_back(e1.start, e2.out);
         } else if (token == "|") {
-            Frag e2 = stack.back(); stack.pop_back();
-            Frag e1 = stack.back(); stack.pop_back();
+            Frag e2 = stack.back();
+            stack.pop_back();
+            Frag e1 = stack.back();
+            stack.pop_back();
             State *s = createState(Split, e1.start, e2.start);
             stack.emplace_back(s, append(e1.out, e2.out));
         } else if (token == "*") {
-            Frag e = stack.back(); stack.pop_back();
+            Frag e = stack.back();
+            stack.pop_back();
             State *s = createState(Split, e.start, nullptr);
             patch(e.out, s);
             stack.emplace_back(s, list1(&s->out1));
         } else if (token == "+") {
-            Frag e = stack.back(); stack.pop_back();
+            Frag e = stack.back();
+            stack.pop_back();
             State *s = createState(Split, e.start, nullptr);
             patch(e.out, s);
             stack.emplace_back(e.start, list1(&s->out1));
         } else if (token == "?") {
-            Frag e = stack.back(); stack.pop_back();
+            Frag e = stack.back();
+            stack.pop_back();
             State *s = createState(Split, e.start, nullptr);
             stack.emplace_back(s, append(e.out, list1(&s->out1)));
         } else {
             State *s = createState(token == "\u03B5" ? Split : token[0]);
-            std::cout << token << std::endl;
             stack.emplace_back(s, list1(&s->out));
         }
     }
@@ -108,111 +106,110 @@ State *post2nfa(std::queue<std::string> &postfix) {
     return e.start;
 }
 
-void buildNFA(State *start,
-              std::vector<std::string> &states,
-              std::set<std::string> &alphabet,
-              std::map<std::string, std::map<std::string, std::vector<std::string>>> &transitions,
-              std::string &startState,
-              std::set<std::string> &finalStates) {
-    std::queue<State *> queue;
-    std::map<State *, std::string> stateMap;
 
-    queue.push(start);
-    stateMap[start] = generateStateId();
+class Moore {
+public:
+    void buildNFA(State *start) {
+        std::queue<State *> queue;
+        std::map<State *, std::string> stateMap;
 
-    while (!queue.empty()) {
-        State *current = queue.front();
-        queue.pop();
+        queue.push(start);
+        stateMap[start] = generateStateId();
 
-        std::string currentId = stateMap[current];
-        if (std::find(states.begin(), states.end(), currentId) == states.end()) {
-            states.push_back(currentId);
-        }
+        while (!queue.empty()) {
+            State *current = queue.front();
+            queue.pop();
 
-        if (current->c == Match) {
-            finalStates.insert(currentId);
-            continue;
-        }
+            std::string currentId = stateMap[current];
+            if (std::find(states.begin(), states.end(), currentId) == states.end()) {
+                states.push_back(currentId);
+            }
 
-        std::string symbol = (current->c == Split) ? "\u03B5" : std::string(1, static_cast<char>(current->c));
+            if (current->c == Match) {
+                finalStates.insert(currentId);
+                continue;
+            }
+
+            std::string symbol = (current->c == Split) ? "\u03B5" : std::string(1, static_cast<char>(current->c));
             alphabet.insert(symbol);
             std::cout << current->c << std::endl;
 
-        if (current->out && stateMap.find(current->out) == stateMap.end()) {
-            stateMap[current->out] = generateStateId();
-            queue.push(current->out);
+            if (current->out && stateMap.find(current->out) == stateMap.end()) {
+                stateMap[current->out] = generateStateId();
+                queue.push(current->out);
+            }
+
+            if (current->out1 && stateMap.find(current->out1) == stateMap.end()) {
+                stateMap[current->out1] = generateStateId();
+                queue.push(current->out1);
+            }
+
+            if (current->out) {
+                transitions[currentId][symbol].push_back(stateMap[current->out]);
+            }
+
+            if (current->out1) {
+                transitions[currentId][symbol].push_back(stateMap[current->out1]);
+            }
         }
 
-        if (current->out1 && stateMap.find(current->out1) == stateMap.end()) {
-            stateMap[current->out1] = generateStateId();
-            queue.push(current->out1);
-        }
+        startState = stateMap[start];
+    }
 
-        if (current->out) {
-            transitions[currentId][symbol].push_back(stateMap[current->out]);
+    void PrintNFA(std::string& string) {
+        std::ofstream file(string);
+        for (const auto &state: states) {
+            file << (finalStates.contains(state) ? ";F" : ";");
         }
+        file << std::endl;
+        alphabet.insert("b");
 
-        if (current->out1) {
-            transitions[currentId][symbol].push_back(stateMap[current->out1]);
+        for (const auto &state: states) {
+            file << ";" << state;
+        }
+        file << std::endl;
+
+        for (const auto &symbol: alphabet) {
+            std::cout << symbol;
+            file << symbol;
+            for (const auto &state: states) {
+                file << ";";
+                if (!transitions[state][symbol].empty()) {
+                    std::string text;
+                    for (const auto &to: transitions[state][symbol]) {
+                        text += to + ",";
+                    }
+                    text.pop_back();
+                    file << text;
+                }
+            }
+            file << std::endl;
         }
     }
 
-    startState = stateMap[start];
-}
-
-int main() {
-    // Пример регулярного выражения
-    std::string regex = "(((a+b)*c)+d)*e";
-    std::queue<std::string> postfix = re2post(regex); // Предполагается, что эта функция реализована
-    State *nfa = post2nfa(postfix);
-
-    // Хранилища для НКА
+private:
     std::vector<std::string> states;
     std::set<std::string> alphabet;
     std::map<std::string, std::map<std::string, std::vector<std::string>>> transitions;
     std::string startState;
     std::set<std::string> finalStates;
 
-    std::ofstream file("NFA.txt");
+};
 
-    // Построение НКА
-    buildNFA(nfa, states, alphabet, transitions, startState, finalStates);
-
-    // Вывод НКА
-    std::cout << "States: ";
-    for (const auto &state : states)
-    {
-        file << (finalStates.contains(state) ? ";F" : ";");
+int main(int argc, char* argv[]) {
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " <output_file.csv> <regex>" << std::endl;
+        return EXIT_FAILURE;
     }
-    file << std::endl;
-    alphabet.insert("b");
 
-    for (const auto &state : states)
-    {
-        file << ";" << state;
-    }
-    file << std::endl;
+    std::string outFileName = argv[1];
+    std::string regex = argv[2];
+    std::queue<std::string> postfix = re2post(regex);
+    State *nfa = post2nfa(postfix);
+    Moore mooreAutomat;
+    mooreAutomat.buildNFA(nfa);
 
-    for (const auto& symbol : alphabet)
-    {
-        std::cout << symbol;
-        file << symbol;
-        for (const auto &state : states)
-        {
-            file << ";";
-            if (! transitions[state][symbol].empty())
-            {
-                std::string text;
-                for (const auto &to : transitions[state][symbol])
-                {
-                    text += to + ",";
-                }
-                text.pop_back();
-                file << text;
-            }
-        }
-        file << std::endl;
-    }
+    mooreAutomat.PrintNFA(outFileName);
 
     return 0;
 }

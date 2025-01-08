@@ -1,0 +1,2 @@
+State;Symbol;Next1;Next2;Final
+0;a;0;;0
