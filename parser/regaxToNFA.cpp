@@ -78,7 +78,6 @@ std::queue<std::string> re2post(const std::string &re) {
 
             case '*':
             case '+':
-            case '?':
                 if (atom == 0) {
                     throw std::invalid_argument("Invalid regex: operator '" + std::string(1, c) + "' without operand.");
                 }
@@ -91,7 +90,15 @@ std::queue<std::string> re2post(const std::string &re) {
                     result.emplace("conc");
                     --atom;
                 }
-                result.emplace(1, c);
+                if (c == '?')
+                {
+                    result.emplace("\u03B5");
+                }
+                else
+                {
+                    result.emplace(1, c);
+                }
+
                 ++atom;
                 prev = c;
                 break;

@@ -202,6 +202,8 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    std::cout << argv[2];
+
     std::string outFileName = argv[1];
     std::string regex = argv[2];
     std::queue<std::string> postfix = re2post(regex);
