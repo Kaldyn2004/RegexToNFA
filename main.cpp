@@ -7,6 +7,7 @@
 #include <map>
 #include <algorithm>
 #include <set>
+#include <cstring>
 
 enum {
     Match = 256,
@@ -132,7 +133,6 @@ public:
 
             std::string symbol = (current->c == Split) ? "\u03B5" : std::string(1, static_cast<char>(current->c));
             alphabet.insert(symbol);
-            std::cout << current->c << std::endl;
 
             if (current->out && stateMap.find(current->out) == stateMap.end()) {
                 stateMap[current->out] = generateStateId();
@@ -170,7 +170,6 @@ public:
         file << std::endl;
 
         for (const auto &symbol: alphabet) {
-            std::cout << symbol;
             file << symbol;
             for (const auto &state: states) {
                 file << ";";
@@ -202,10 +201,27 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    std::cout << argv[2];
-
     std::string outFileName = argv[1];
-    std::string regex = argv[2];
+
+    const char* original = argv[2];
+    size_t length = std::strlen(original);
+
+    std::string regex;
+
+
+    for (size_t i = 0; i < length; ++i) {
+        int ch = static_cast<int>(original[i]);
+        std::cout << ch << std::endl;
+        if (ch < 0) {
+            regex += '?';
+            std::cout << "Invalid Character at " << i << ": " << original[i]
+                      << " (ASCII: " << static_cast<int>(ch) << ")" << std::endl;
+            ++i;
+        } else {
+            regex += original[i];
+        }
+    }
+
     std::queue<std::string> postfix = re2post(regex);
     State *nfa = post2nfa(postfix);
     Moore mooreAutomat;
