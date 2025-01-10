@@ -216,7 +216,6 @@ int main(int argc, char* argv[]) {
             regex += '?';
             std::cout << "Invalid Character at " << i << ": " << original[i]
                       << " (ASCII: " << static_cast<int>(ch) << ")" << std::endl;
-            ++i;
         } else {
             regex += original[i];
         }
