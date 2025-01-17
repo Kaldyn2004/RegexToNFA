@@ -12,6 +12,8 @@ std::queue<std::string> re2post(const std::string &re) {
         int atom = 0;
     };
 
+    bool escape = false;
+
     std::queue<std::string> result;
     std::stack<State> parenStack;
     int alt = 0;
@@ -19,7 +21,27 @@ std::queue<std::string> re2post(const std::string &re) {
     char prev = 0;
 
     for (char c: re) {
+        std::cout << c;
+        if (escape) {
+            escape = false; // Сбрасываем флаг
+
+            if (atom > 1) {
+                result.emplace("conc");
+                --atom;
+            }
+            result.emplace(1, '\\');
+            result.emplace(1, c);
+
+            ++atom;
+            prev = 'c';
+            continue;
+        }
+
         switch (c) {
+            case '\\':
+                escape = true; // Устанавливаем флаг экранирования
+                break;
+
             case '(':
                 if (atom > 1) {
                     result.push("conc");

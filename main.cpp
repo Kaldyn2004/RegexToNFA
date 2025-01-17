@@ -59,11 +59,20 @@ State *post2nfa(std::queue<std::string> &postfix) {
 
     std::vector<Frag> stack;
 
+    bool escape = false;
+
     while (!postfix.empty()) {
         std::string token = postfix.front();
         postfix.pop();
 
-        if (token == "conc") {
+        if (escape) {
+            escape = false;
+            State *s = createState(token == "\u03B5" ? Split : token[0]);
+            stack.emplace_back(s, list1(&s->out));
+        } else if (token == "\\") {
+            escape = true;
+
+        } else if (token == "conc") {
             Frag e2 = stack.back();
             stack.pop_back();
             Frag e1 = stack.back();
@@ -76,7 +85,7 @@ State *post2nfa(std::queue<std::string> &postfix) {
             Frag e1 = stack.back();
             stack.pop_back();
             State *s = createState(Split, e1.start, e2.start);
-            stack.emplace_back(s, append(e1.out, e2.out));
+            stack.emplace_back(s, list1(&s->out1));
         } else if (token == "*") {
             Frag e = stack.back();
             stack.pop_back();
